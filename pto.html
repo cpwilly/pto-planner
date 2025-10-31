@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Time Off Planner</title>
+<style>
+:root {
+  --bg: #0f172a;
+  --nav: #0b1220;
+  --accent: #60a5fa;
+  --muted: #94a3b8;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Inter, Arial, sans-serif;
+  background: var(--bg);
+  color: #e2e8f0;
+}
+.app {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+.navbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  background: var(--nav);
+  width: 300px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+  overflow-y: auto;
+}
+.navbar h1 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+.navbar input, .navbar select, .navbar button {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+.navbar button {
+  background: var(--accent);
+  color: #031221;
+  font-weight: bold;
+  cursor: pointer;
+}
+.category {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.05);
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: grab;
+}
+.category .color-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+.category .name {
+  flex: 1;
+  font-weight: bold;
+}
+.calendar {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.month {
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  padding: 8px;
+}
+.month h3 {
+  text-align: center;
+  margin: 4px 0 8px;
+}
+.weekdays, .days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 12px;
+}
+.weekdays div {
+  color: var(--muted);
+}
+.day {
+  height: 60px;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 4px;
+  margin: 2px;
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+.day.inactive {
+  opacity: 0.15;
+  pointer-events: none;
+}
+.day .date-num {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.day.drop-highlight {
+  outline: 2px dashed var(--accent);
+}
+.remaining {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="navbar">
+    <h1>Time Off Planner</h1>
+    <label>Year</label>
+    <select id="yearSelect"></select>
+    <input id="catName" type="text" placeholder="Category name (e.g. PTO)">
+    <input id="catQty" type="number" placeholder="Quantity" min="1">
+    <input id="catColor" type="color" value="#60a5fa">
+    <button id="addCatBtn">Add Category</button>
+    <h3>Categories</h3>
+    <div id="categories"></div>
+    <button id="exportBtn">Export JSON</button>
+    <button id="importBtn">Import JSON</button>
+    <input id="importFile" type="file" style="display:none" accept="application/json">
+  </div>
+  <div class="calendar">
+    <div class="year-grid" id="yearGrid"></div>
+  </div>
+</div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const today = new Date();
+  const stateKey = 'timeoff_planner_v2';
+  let data = { year: today.getFullYear(), categories: [], events: {} };
+
+  function init() {
+    load();
+    populateYearSelect();
+    renderCategories();
+    renderCalendar();
+    attachUI();
+  }
+
+  function populateYearSelect() {
+    const start = data.year - 3;
+    $('yearSelect').innerHTML = '';
+    for (let y = start; y <= start + 6; y++) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y;
+      if (y === data.year) opt.selected = true;
+      $('yearSelect').appendChild(opt);
+    }
+  }
+
+  function attachUI() {
+    $('addCatBtn').onclick = addCategory;
+    $('yearSelect').onchange = e => { data.year = +e.target.value; renderCalendar(); save(); };
+    $('exportBtn').onclick = exportJSON;
+    $('importBtn').onclick = () => $('importFile').click();
+    $('importFile').onchange = importJSON;
+  }
+
+  function addCategory() {
+    const name = $('catName').value.trim();
+    const qty = parseInt($('catQty').value) || 0;
+    const color = $('catColor').value;
+    if (!name || qty <= 0) return alert('Invalid category');
+    data.categories.push({ id: 'cat_' + Date.now(), name, qty, used: 0, color });
+    $('catName').value = '';
+    $('catQty').value = '';
+    renderCategories();
+    save();
+  }
+
+  function renderCategories() {
+    const cont = $('categories');
+    cont.innerHTML = '';
+    data.categories.forEach(cat => {
+      const el = document.createElement('div');
+      el.className = 'category';
+      el.draggable = true;
+      el.innerHTML = `<div class='color-box' style='background:${cat.color}'></div><div class='name'>${cat.name}</div><div>${cat.qty - cat.used}/${cat.qty}</div>`;
+      el.ondragstart = e => { e.dataTransfer.setData('catId', cat.id); };
+      el.onclick = () => {
+        const newColor = prompt('Pick new color (hex):', cat.color);
+        if (newColor) { cat.color = newColor; renderCategories(); renderCalendar(); save(); }
+      };
+      cont.appendChild(el);
+    });
+  }
+
+  function renderCalendar() {
+    const grid = $('yearGrid');
+    grid.innerHTML = '';
+    const year = data.year;
+    for (let m = 0; m < 12; m++) {
+      const monthEl = document.createElement('div');
+      monthEl.className = 'month';
+      const monthName = new Date(year, m, 1).toLocaleString('default', { month: 'long' });
+      monthEl.innerHTML = `<h3>${monthName}</h3><div class='weekdays'>${['S','M','T','W','T','F','S'].map(d=>`<div>${d}</div>`).join('')}</div><div class='days'></div>`;
+      const daysEl = monthEl.querySelector('.days');
+      const firstDay = new Date(year, m, 1).getDay();
+      const daysInMonth = new Date(year, m + 1, 0).getDate();
+      for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'day inactive';
+        daysEl.appendChild(empty);
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const day = document.createElement('div');
+        day.className = 'day';
+        day.dataset.date = date;
+        day.innerHTML = `<div class='date-num'>${d}</div>`;
+        day.ondragover = e => e.preventDefault();
+        day.ondrop = e => {
+          const catId = e.dataTransfer.getData('catId');
+          if (!catId) return;
+          const cat = data.categories.find(c => c.id === catId);
+          if (!cat || cat.used >= cat.qty) return;
+          data.events[date] = { catId };
+          cat.used = countUsed(cat.id);
+          renderCalendar();
+          renderCategories();
+          save();
+        };
+        const ev = data.events[date];
+        if (ev) {
+          const cat = data.categories.find(c => c.id === ev.catId);
+          if (cat) {
+            day.style.background = cat.color;
+          }
+        }
+        daysEl.appendChild(day);
+      }
+      grid.appendChild(monthEl);
+    }
+  }
+
+  function countUsed(catId) {
+    return Object.values(data.events).filter(e => e.catId === catId).length;
+  }
+
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `timeoff-${data.year}.json`;
+    a.click();
+  }
+
+  function importJSON(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const obj = JSON.parse(ev.target.result);
+        data = obj;
+        renderCategories();
+        renderCalendar();
+        save();
+      } catch {
+        alert('Invalid file');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function save() {
+    localStorage.setItem(stateKey, JSON.stringify(data));
+  }
+
+  function load() {
+    const raw = localStorage.getItem(stateKey);
+    if (raw) {
+      try { data = JSON.parse(raw); } catch { }
+    }
+    if (!data.categories.length) {
+      data.categories.push({ id:'cat_pto', name:'PTO', qty:15, used:0, color:'#60a5fa' });
+      data.categories.push({ id:'cat_sick', name:'Sick', qty:10, used:0, color:'#34d399' });
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
