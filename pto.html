@@ -3,165 +3,225 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Time Off Planner</title>
+<title>Time Off Planner — Palette + Half Days</title>
 <style>
-:root {
-  --bg: #0f172a;
-  --nav: #0b1220;
-  --accent: #60a5fa;
-  --muted: #94a3b8;
+:root{
+  --bg:#0f172a;
+  --nav:#0b1220;
+  --accent:#60a5fa;
+  --muted:#94a3b8;
+  --card:#081225;
 }
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  font-family: Inter, Arial, sans-serif;
-  background: var(--bg);
-  color: #e2e8f0;
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Roboto,Arial;background:var(--bg);color:#e6eef8}
+.app{display:flex;height:100vh;overflow:hidden}
+.navbar{position:sticky;top:0;left:0;background:var(--nav);width:320px;height:100vh;display:flex;flex-direction:column;padding:16px;box-shadow:2px 0 12px rgba(0,0,0,0.45);overflow:auto}
+.navbar h1{font-size:18px;margin:0 0 8px}
+.label{font-size:13px;color:var(--muted);margin-bottom:6px}
+.navbar input, .navbar select, .navbar button, .navbar .small-btn{width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--muted)}
+.navbar button{background:var(--accent);color:#031221;font-weight:700;cursor:pointer;border:none}
+.controls-row{display:flex;gap:8px}
+.controls-row input{flex:1}
+.palette{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.color-swatch{width:30px;height:30px;border-radius:6px;border:2px solid rgba(255,255,255,0.04);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.category{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px;cursor:grab}
+.category .meta{flex:1;display:flex;flex-direction:column}
+/* changed: make category heading white */
+.category .meta .name{font-weight:700; color: #ffffff}
+.category .meta .qty{font-size:13px;color:var(--muted)}
+.category .actions{display:flex;gap:6px}
+.small-btn{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:6px;border-radius:8px;color:var(--muted);cursor:pointer}
+
+/* new: picker button + popup styles */
+.color-picker-btn{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;gap:8px}
+.palette.popup{ /* treat popup separately: hidden by default */
+  display:none;
+  position:absolute;
+  left:16px;
+  top:120px;
+  background:var(--card);
+  padding:10px;
+  border-radius:10px;
+  box-shadow:0 10px 30px rgba(2,6,23,0.7);
+  width:calc(100% - 32px);
+  z-index:60;
+  gap:8px;
+  flex-wrap:wrap;
+  border:1px solid rgba(255,255,255,0.06); /* added border for popup */
 }
-.app {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-}
-.navbar {
-  position: sticky;
-  top: 0;
-  left: 0;
-  background: var(--nav);
-  width: 300px;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.3);
-  overflow-y: auto;
-}
-.navbar h1 {
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-.navbar input, .navbar select, .navbar button {
-  width: 100%;
-  margin-bottom: 8px;
-  padding: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-}
-.navbar button {
-  background: var(--accent);
-  color: #031221;
-  font-weight: bold;
-  cursor: pointer;
-}
-.category {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(255,255,255,0.05);
-  padding: 8px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  cursor: grab;
-}
-.category .color-box {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  margin-right: 8px;
-}
-.category .name {
-  flex: 1;
-  font-weight: bold;
-}
-.calendar {
-  flex: 1;
-  overflow: auto;
-  padding: 20px;
-}
-.year-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-.month {
-  background: rgba(255,255,255,0.03);
-  border-radius: 8px;
-  padding: 8px;
-}
-.month h3 {
-  text-align: center;
-  margin: 4px 0 8px;
-}
-.weekdays, .days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  text-align: center;
-  font-size: 12px;
-}
-.weekdays div {
-  color: var(--muted);
-}
-.day {
-  height: 60px;
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 4px;
-  margin: 2px;
-  position: relative;
-  transition: background 0.2s;
-  cursor: pointer;
-}
-.day.inactive {
-  opacity: 0.15;
-  pointer-events: none;
-}
-.day .date-num {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  font-size: 10px;
-  color: var(--muted);
-}
-.day.drop-highlight {
-  outline: 2px dashed var(--accent);
-}
-.remaining {
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 6px;
-}
+.palette.popup.open{ display:flex; }
+.palette.popup .color-swatch{ width:36px; height:36px }
+
+/* segmented toggle for full/half day */
+.seg-toggle{display:flex;gap:8px}
+.seg-btn{flex:1;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);cursor:pointer}
+.seg-btn.selected{background:var(--accent);color:#031221;border-color:transparent;font-weight:700}
+
+/* calendar */
+.calendar{flex:1;overflow:auto;padding:22px}
+.year-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.month{background:var(--card);border-radius:10px;padding:8px}
+.month h3{text-align:center;margin:2px 0 8px}
+.weekdays, .days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.weekdays div{font-size:12px;color:var(--muted);text-align:center}
+.day{height:66px;border-radius:6px;border:1px solid rgba(255,255,255,0.03);position:relative;padding:6px;transition:transform .06s,box-shadow .06s;overflow:hidden}
+.day:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(2,6,23,0.5)}
+.day.inactive{opacity:0.12;pointer-events:none}
+.date-num{position:absolute;top:6px;right:8px;font-size:11px;color:var(--muted);font-weight:700;z-index:5}
+.day.drop-highlight{outline:3px dashed rgba(96,165,250,0.22);outline-offset:2px}
+.half-overlay{position:absolute;inset:0;pointer-events:none;z-index:3}
+/* diagonal split uses linear-gradients: fill portion with solid color and rest semi-transparent */
+.half-overlay.diagonal{background:linear-gradient(135deg, rgba(255,255,255,0.0) 49.9%, rgba(0,0,0,0.08) 50%);}
+
+/* small helper */
+.meta-row{display:flex;justify-content:space-between;align-items:center}
+.footer-note{font-size:13px;color:var(--muted);margin-top:8px}
+
+/* modal */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;z-index:999}
+.modal{width:420px;background:var(--card);border-radius:12px;padding:14px;color:#e6eef8; border:1px solid rgba(255,255,255,0.06);} /* added border */
+.modal h3{margin:0 0 8px}
+.modal .row{display:flex;gap:8px;margin-bottom:8px}
+.select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--muted)}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+
+/* responsive */
+@media (max-width:980px){ .navbar{position:relative;width:100%;height:auto} .app{flex-direction:column;height:auto} .calendar{padding:12px} .year-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="navbar">
+  <div class="navbar" id="navbar">
     <h1>Time Off Planner</h1>
-    <label>Year</label>
+
+    <div class="label">Year</div>
     <select id="yearSelect"></select>
+
+    <div class="label">Create category</div>
     <input id="catName" type="text" placeholder="Category name (e.g. PTO)">
-    <input id="catQty" type="number" placeholder="Quantity" min="1">
-    <input id="catColor" type="color" value="#60a5fa">
-    <button id="addCatBtn">Add Category</button>
-    <h3>Categories</h3>
+    <input id="catQty" type="number" placeholder="Quantity (days)" min="1">
+
+    <div class="label">Pick color</div>
+    <!-- changed: static palette -> toggle button + popup palette -->
+    <button id="colorBtn" class="small-btn color-picker-btn" aria-expanded="false" aria-controls="palette">Choose color ▾</button>
+    <div class="palette popup" id="palette" role="menu" aria-hidden="true"></div>
+
+    <div style="display:flex;gap:8px">
+      <button id="addCatBtn">Add Category</button>
+      <button id="clearBtn" class="small-btn">Clear All</button>
+    </div>
+
+    <div style="margin-top:12px" class="label">Categories</div>
     <div id="categories"></div>
-    <button id="exportBtn">Export JSON</button>
-    <button id="importBtn">Import JSON</button>
-    <input id="importFile" type="file" style="display:none" accept="application/json">
+
+    <div style="margin-top:8px" class="label">Data</div>
+    <div style="display:flex;gap:8px">
+      <button id="exportBtn">Export</button>
+      <button id="importBtn" class="small-btn">Import</button>
+      <input id="importFile" type="file" accept="application/json" style="display:none">
+    </div>
+
+    <div class="footer-note">Drag a category square to any day. Click a filled day to remove, swap, or convert to half-day.</div>
   </div>
+
   <div class="calendar">
     <div class="year-grid" id="yearGrid"></div>
   </div>
 </div>
+
+<!-- Modal -->
+<div id="modalBackdrop" class="modal-backdrop">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3 id="modalTitle">Day options</h3>
+    <div id="modalBody"></div>
+    <div class="actions">
+      <button id="modalCancel" class="small-btn">Close</button>
+      <button id="modalSave" class="small-btn">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (() => {
+  // --- Utilities ---
   const $ = id => document.getElementById(id);
   const today = new Date();
-  const stateKey = 'timeoff_planner_v2';
+  const stateKey = 'timeoff_planner_v3';
+  // Predefined palette (10 colors)
+  const PALETTE = ['#60a5fa','#7c3aed','#f97316','#ef4444','#34d399','#f59e0b','#10b981','#0ea5e9','#a78bfa','#f472b6'];
+
+  // contrast helper: return '#000' or '#fff' for readability
+  function contrastColor(hex){
+    // convert hex -> rgb
+    hex = hex.replace('#','');
+    const r = parseInt(hex.substring(0,2),16);
+    const g = parseInt(hex.substring(2,4),16);
+    const b = parseInt(hex.substring(4,6),16);
+    // luminance formula
+    const lum = (0.2126*r + 0.7152*g + 0.0722*b) / 255;
+    return lum > 0.55 ? '#042029' : '#ffffff';
+  }
+
+  // drag image generator (square)
+  function makeDragImage(color, label){
+    const size = 64;
+    const el = document.createElement('div');
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.borderRadius = '8px';
+    el.style.fontSize = '12px';
+    el.style.fontWeight = '700';
+    el.style.color = contrastColor(color);
+    el.style.background = color;
+    el.style.boxShadow = '0 6px 18px rgba(0,0,0,0.4)';
+    el.textContent = label;
+    document.body.appendChild(el);
+    // create image from element by drawing to canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    // fill bg
+    ctx.fillStyle = color; ctx.fillRect(0,0,size,size);
+    // text
+    ctx.fillStyle = contrastColor(color);
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, size/2, size/2);
+    // return canvas
+    const img = new Image();
+    img.src = canvas.toDataURL('image/png');
+    // remove temp el
+    document.body.removeChild(el);
+    return img;
+  }
+
+  // --- Data model ---
+  // events: { 'YYYY-MM-DD': { catId:string, half: boolean } }
   let data = { year: today.getFullYear(), categories: [], events: {} };
 
-  function init() {
+  // --- DOM refs ---
+  const yearSelect = $('yearSelect');
+  const yearGrid = $('yearGrid');
+  const paletteEl = $('palette');   // popup palette
+  const paletteBtn = $('colorBtn'); // toggle button
+  const categoriesEl = $('categories');
+  const modalBackdrop = $('modalBackdrop');
+  const modalTitle = $('modalTitle');
+  const modalBody = $('modalBody');
+  const modalCancel = $('modalCancel');
+  const modalSave = $('modalSave');
+
+  // state for drag highlight
+  let draggingCat = null;
+  let currentDragImage = null;
+
+  // --- Init ---
+  function init(){
+    buildPalette();
     load();
     populateYearSelect();
     renderCategories();
@@ -169,149 +229,481 @@ html, body {
     attachUI();
   }
 
-  function populateYearSelect() {
-    const start = data.year - 3;
-    $('yearSelect').innerHTML = '';
-    for (let y = start; y <= start + 6; y++) {
-      const opt = document.createElement('option');
-      opt.value = y;
-      opt.textContent = y;
-      if (y === data.year) opt.selected = true;
-      $('yearSelect').appendChild(opt);
+  function buildPalette(){
+    // render swatches into popup palette
+    paletteEl.innerHTML = '';
+    PALETTE.forEach(hex => {
+      const sw = document.createElement('div');
+      sw.className = 'color-swatch';
+      sw.style.background = hex;
+      sw.title = hex;
+      sw.onclick = () => {
+        // mark selection visually
+        paletteEl.querySelectorAll('.color-swatch').forEach(s=>s.style.outline='none');
+        sw.style.outline = '3px solid rgba(255,255,255,0.12)';
+        // set hidden value
+        if(!$('catColorHolder')){
+          const inp = document.createElement('input');
+          inp.type='hidden'; inp.id='catColorHolder'; inp.value = hex;
+          paletteEl.parentElement.insertBefore(inp, paletteEl.nextSibling);
+        } else {
+          $('catColorHolder').value = hex;
+        }
+        // close popup after selection
+        paletteEl.classList.remove('open');
+        paletteBtn.setAttribute('aria-expanded','false');
+        paletteEl.setAttribute('aria-hidden','true');
+      };
+      paletteEl.appendChild(sw);
+    });
+    // hidden input to carry chosen color (if not present)
+    if(!$('catColorHolder')){
+      const inp = document.createElement('input');
+      inp.type='hidden'; inp.id='catColorHolder'; inp.value = PALETTE[0];
+      paletteEl.parentElement.insertBefore(inp, paletteEl.nextSibling);
+      // pre-select first swatch visually after DOM insertion
+      const first = paletteEl.querySelector('.color-swatch');
+      if(first) first.style.outline='3px solid rgba(255,255,255,0.12)';
+    } else {
+      // ensure some swatch shows selected if present
+      const cur = $('catColorHolder').value || PALETTE[0];
+      const sel = Array.from(paletteEl.querySelectorAll('.color-swatch')).find(s=>s.title===cur);
+      if(sel) sel.style.outline='3px solid rgba(255,255,255,0.12)';
     }
   }
 
-  function attachUI() {
-    $('addCatBtn').onclick = addCategory;
-    $('yearSelect').onchange = e => { data.year = +e.target.value; renderCalendar(); save(); };
-    $('exportBtn').onclick = exportJSON;
-    $('importBtn').onclick = () => $('importFile').click();
-    $('importFile').onchange = importJSON;
+  // --- UI attach ---
+  function attachUI(){
+    $('addCatBtn').addEventListener('click', onAddCategory);
+    $('yearSelect').addEventListener('change', e=>{ data.year = +e.target.value; renderCalendar(); save(); });
+    $('exportBtn').addEventListener('click', exportJSON);
+    $('importBtn').addEventListener('click', ()=>$('importFile').click());
+    $('importFile').addEventListener('change', importJSON);
+    $('clearBtn').addEventListener('click', ()=>{ if(confirm('Clear all events?')){ data.events={}; updateUsed(); renderCalendar(); save(); }});
+    modalCancel.addEventListener('click', ()=>{ hideModal(); });
+    modalSave.addEventListener('click', ()=>{ applyModalChanges(); });
+
+    // palette toggle button
+    if(paletteBtn){
+      paletteBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const isOpen = paletteEl.classList.toggle('open');
+        paletteEl.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        paletteBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+    }
+    // close palette when clicking outside
+    document.addEventListener('click', (e)=>{
+      if(!paletteEl) return;
+      if(e.target.closest && (e.target.closest('#palette') || e.target.closest('#colorBtn'))) return;
+      if(paletteEl.classList.contains('open')){
+        paletteEl.classList.remove('open');
+        paletteEl.setAttribute('aria-hidden','true');
+        if(paletteBtn) paletteBtn.setAttribute('aria-expanded','false');
+      }
+    });
+    // close on Escape
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape' && paletteEl && paletteEl.classList.contains('open')){
+        paletteEl.classList.remove('open');
+        paletteEl.setAttribute('aria-hidden','true');
+        if(paletteBtn) paletteBtn.setAttribute('aria-expanded','false');
+      }
+    });
   }
 
-  function addCategory() {
+  // --- Categories management ---
+  function onAddCategory(){
     const name = $('catName').value.trim();
-    const qty = parseInt($('catQty').value) || 0;
-    const color = $('catColor').value;
-    if (!name || qty <= 0) return alert('Invalid category');
-    data.categories.push({ id: 'cat_' + Date.now(), name, qty, used: 0, color });
-    $('catName').value = '';
-    $('catQty').value = '';
+    const qty = parseFloat($('catQty').value) || 0;
+    const color = $('catColorHolder').value || PALETTE[0];
+    if(!name || qty <= 0){ alert('Please provide a name and quantity > 0'); return; }
+    const id = 'cat_' + Date.now() + '_' + Math.floor(Math.random()*9999);
+    data.categories.push({ id, name, qty, color, used: 0 });
+    $('catName').value=''; $('catQty').value='';
     renderCategories();
     save();
   }
 
-  function renderCategories() {
-    const cont = $('categories');
-    cont.innerHTML = '';
-    data.categories.forEach(cat => {
+  function renderCategories(){
+    categoriesEl.innerHTML = '';
+    data.categories.forEach(cat=>{
+      // update used
+      cat.used = countUsed(cat.id);
       const el = document.createElement('div');
       el.className = 'category';
       el.draggable = true;
-      el.innerHTML = `<div class='color-box' style='background:${cat.color}'></div><div class='name'>${cat.name}</div><div>${cat.qty - cat.used}/${cat.qty}</div>`;
-      el.ondragstart = e => { e.dataTransfer.setData('catId', cat.id); };
-      el.onclick = () => {
-        const newColor = prompt('Pick new color (hex):', cat.color);
-        if (newColor) { cat.color = newColor; renderCategories(); renderCalendar(); save(); }
-      };
-      cont.appendChild(el);
+      el.title = 'Drag to day. Click to edit';
+      el.dataset.catId = cat.id;
+      const colorBox = document.createElement('div');
+      colorBox.className = 'color-box';
+      colorBox.style.width='38px';
+      colorBox.style.height='38px';
+      colorBox.style.borderRadius='8px';
+      colorBox.style.background = cat.color;
+      colorBox.style.flex = '0 0 auto';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      // show name as heading and then "remaining/total remaining"
+      const remaining = Math.max(0, cat.qty - cat.used);
+      meta.innerHTML = `<div class="name">${escapeHtml(cat.name)}</div><div class="qty">${formatNumberForDisplay(remaining, cat.used)}/${formatNumberForDisplay(cat.qty, cat.used)} remaining</div>`;
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const editBtn = document.createElement('button'); editBtn.className='small-btn'; editBtn.textContent='Edit';
+      actions.appendChild(editBtn);
+      // NOTE: Delete button intentionally removed from inline card per request.
+
+      el.appendChild(colorBox);
+      el.appendChild(meta);
+      el.appendChild(actions);
+
+      // dragstart: set data and custom drag image (square)
+      el.addEventListener('dragstart', e=>{
+        draggingCat = cat;
+        e.dataTransfer.setData('text/plain', cat.id);
+        e.dataTransfer.effectAllowed = 'copy';
+        // custom drag image
+        const img = makeDragImage(cat.color, cat.name[0] || '•');
+        // if image not yet loaded, wait
+        img.onload = ()=> {
+          try{ e.dataTransfer.setDragImage(img, 32, 32); }catch(err){} 
+        };
+        // fallback immediate
+        try{ e.dataTransfer.setDragImage(img, 32, 32); } catch(err){}
+      });
+      el.addEventListener('dragend', ()=>{ draggingCat = null; });
+
+      // click opens small edit modal for category
+      el.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        openCategoryEditor(cat.id);
+      });
+
+      editBtn.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        openCategoryEditor(cat.id);
+      });
+
+      categoriesEl.appendChild(el);
     });
   }
 
-  function renderCalendar() {
-    const grid = $('yearGrid');
-    grid.innerHTML = '';
-    const year = data.year;
-    for (let m = 0; m < 12; m++) {
-      const monthEl = document.createElement('div');
-      monthEl.className = 'month';
-      const monthName = new Date(year, m, 1).toLocaleString('default', { month: 'long' });
-      monthEl.innerHTML = `<h3>${monthName}</h3><div class='weekdays'>${['S','M','T','W','T','F','S'].map(d=>`<div>${d}</div>`).join('')}</div><div class='days'></div>`;
-      const daysEl = monthEl.querySelector('.days');
-      const firstDay = new Date(year, m, 1).getDay();
-      const daysInMonth = new Date(year, m + 1, 0).getDate();
-      for (let i = 0; i < firstDay; i++) {
-        const empty = document.createElement('div');
-        empty.className = 'day inactive';
-        daysEl.appendChild(empty);
-      }
-      for (let d = 1; d <= daysInMonth; d++) {
-        const date = `${year}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const day = document.createElement('div');
-        day.className = 'day';
-        day.dataset.date = date;
-        day.innerHTML = `<div class='date-num'>${d}</div>`;
-        day.ondragover = e => e.preventDefault();
-        day.ondrop = e => {
-          const catId = e.dataTransfer.getData('catId');
-          if (!catId) return;
-          const cat = data.categories.find(c => c.id === catId);
-          if (!cat || cat.used >= cat.qty) return;
-          data.events[date] = { catId };
-          cat.used = countUsed(cat.id);
-          renderCalendar();
-          renderCategories();
-          save();
-        };
-        const ev = data.events[date];
-        if (ev) {
-          const cat = data.categories.find(c => c.id === ev.catId);
-          if (cat) {
-            day.style.background = cat.color;
-          }
-        }
-        daysEl.appendChild(day);
-      }
-      grid.appendChild(monthEl);
-    }
-  }
+  function openCategoryEditor(catId){
+    const cat = data.categories.find(c=>c.id===catId);
+    if(!cat) return;
+    // build modal content
+    modalTitle.textContent = 'Edit category';
+    modalBody.innerHTML = '';
+    // name
+    const nameRow = document.createElement('div'); nameRow.className='row';
+    const nameInput = document.createElement('input'); nameInput.value = cat.name; nameInput.style.flex='1';
+    nameRow.appendChild(nameInput);
+    modalBody.appendChild(nameRow);
+    // qty
+    const qtyRow = document.createElement('div'); qtyRow.className='row';
+    const qtyInput = document.createElement('input'); qtyInput.type='number'; qtyInput.value = cat.qty; qtyInput.min=0; qtyInput.style.flex='1';
+    qtyRow.appendChild(qtyInput);
+    modalBody.appendChild(qtyRow);
+    // palette
+    const palRow = document.createElement('div'); palRow.className='row';
+    const palContainer = document.createElement('div'); palContainer.style.display='flex'; palContainer.style.gap='8px'; palContainer.style.flexWrap='wrap';
+    PALETTE.forEach(col => {
+      const sw = document.createElement('div'); sw.className='color-swatch'; sw.style.background = col;
+      if(col === cat.color) sw.style.outline = '3px solid rgba(255,255,255,0.12)';
+      sw.onclick = ()=>{ cat.color = col; palContainer.querySelectorAll('.color-swatch').forEach(s=>s.style.outline='none'); sw.style.outline='3px solid rgba(255,255,255,0.12)'; };
+      palContainer.appendChild(sw);
+    });
+    palRow.appendChild(palContainer);
+    modalBody.appendChild(palRow);
 
-  function countUsed(catId) {
-    return Object.values(data.events).filter(e => e.catId === catId).length;
-  }
-
-  function exportJSON() {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `timeoff-${data.year}.json`;
-    a.click();
-  }
-
-  function importJSON(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const obj = JSON.parse(ev.target.result);
-        data = obj;
+    // Delete moved into the editor modal
+    const delRow = document.createElement('div'); delRow.className='row';
+    const delBtn = document.createElement('button'); delBtn.className='small-btn'; delBtn.textContent='Delete';
+    delBtn.style.background = 'transparent';
+    delBtn.onclick = ()=>{ 
+      if(confirm('Delete category and remove its events?')){
+        deleteCategory(cat.id);
+        hideModal();
         renderCategories();
         renderCalendar();
         save();
-      } catch {
-        alert('Invalid file');
       }
     };
-    reader.readAsText(file);
+    delRow.appendChild(delBtn);
+    modalBody.appendChild(delRow);
+
+    // store editing context
+    modalBody._editing = { type:'category', catId: cat.id, inputs: { nameInput, qtyInput } };
+    showModal();
   }
 
-  function save() {
-    localStorage.setItem(stateKey, JSON.stringify(data));
+  function deleteCategory(catId){
+    // remove category and any events assigned to it
+    data.categories = data.categories.filter(c=>c.id!==catId);
+    for(const day in data.events){ if(data.events[day] && data.events[day].catId === catId) delete data.events[day]; }
+    updateUsed(); save();
   }
 
-  function load() {
+  // --- Calendar rendering ---
+  function populateYearSelect(){
+    yearSelect.innerHTML = '';
+    const start = data.year - 3;
+    for(let y=start;y<=start+6;y++){
+      const opt = document.createElement('option'); opt.value=y; opt.textContent=y; if(y===data.year) opt.selected=true;
+      yearSelect.appendChild(opt);
+    }
+  }
+
+  function renderCalendar(){
+    yearGrid.innerHTML = '';
+    const year = data.year;
+    for(let m=0;m<12;m++){
+      const monthEl = document.createElement('div'); monthEl.className='month';
+      const monthName = new Date(year,m,1).toLocaleString(undefined,{month:'long'});
+      monthEl.innerHTML = `<h3>${monthName} ${year}</h3><div class="weekdays">${['S','M','T','W','T','F','S'].map(d=>`<div>${d}</div>`).join('')}</div>`;
+      const daysEl = document.createElement('div'); daysEl.className='days';
+      const first = new Date(year,m,1).getDay();
+      const daysInMonth = new Date(year,m+1,0).getDate();
+      for(let i=0;i<first;i++){ const empty = document.createElement('div'); empty.className='day inactive'; daysEl.appendChild(empty); }
+      for(let d=1; d<=daysInMonth; d++){
+        const date = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const day = document.createElement('div'); day.className='day'; day.dataset.date = date;
+        day.innerHTML = `<div class="date-num"></div>`;
+        day.querySelector('.date-num').textContent = d;
+
+        // drag highlight & drop
+        day.addEventListener('dragover', e=>{ e.preventDefault(); if(draggingCat) day.classList.add('drop-highlight'); });
+        day.addEventListener('dragleave', e=>{ day.classList.remove('drop-highlight'); });
+        day.addEventListener('drop', e=>{
+          e.preventDefault();
+          day.classList.remove('drop-highlight');
+          const catId = e.dataTransfer.getData('text/plain') || (draggingCat && draggingCat.id);
+          if(!catId) return;
+          const cat = data.categories.find(c=>c.id===catId);
+          if(!cat) return;
+          // if category quota exceeded, warn
+          const used = countUsed(cat.id);
+          if(used + 1 > cat.qty + 0.001){ alert('No remaining days in this category'); return; }
+          // assign full day
+          data.events[date] = { catId: cat.id, half: false };
+          updateUsed(); renderCategories(); renderCalendar(); save();
+        });
+
+        // clicking day opens day modal
+        day.addEventListener('click', () => {
+          openDayModal(date);
+        });
+
+        // render assignment if any
+        const ev = data.events[date];
+        if(ev && ev.catId){
+          const cat = data.categories.find(c=>c.id===ev.catId);
+          if(cat){
+            // set background color for day
+            if(ev.half){
+              // half diagonal fill using : before pseudo not available; create overlay element
+              day.style.background = cat.color;
+              // overlay for diagonal cut: use linear-gradient on .half-overlay element
+              const overlay = document.createElement('div');
+              overlay.className = 'half-overlay';
+              // create diagonal: show half filled (we want diagonal cut so show color on half and transparent on other half)
+              // to maintain readable date number, we will set date number color via contrast
+              overlay.style.background = `linear-gradient(135deg, rgba(0,0,0,0) 49.9%, rgba(255,255,255,0.00) 50%)`;
+              // We'll simulate a diagonal by adding a pseudo-diagonal mask using an extra element with rotated square
+              // Simpler: place an svg triangle overlay that masks half.
+              const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+              svg.setAttribute('width','100%'); svg.setAttribute('height','100%'); svg.setAttribute('viewBox','0 0 100 100');
+              svg.style.position='absolute'; svg.style.left='0'; svg.style.top='0'; svg.style.zIndex=2; svg.style.pointerEvents='none';
+              const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+              // triangle that covers top-left half (45deg)
+              poly.setAttribute('points','0,0 100,0 0,100');
+              poly.setAttribute('fill','rgba(0,0,0,0.0)'); // we keep fill transparent because underlying day has color
+              svg.appendChild(poly);
+              day.appendChild(svg);
+              // add a diagonal mask effect by overlaying a semi-transparent white on the uncovered half to visually indicate half day
+              const mask = document.createElement('div'); mask.style.position='absolute'; mask.style.inset='0'; mask.style.pointerEvents='none'; mask.style.background = `linear-gradient(135deg, rgba(0,0,0,0) 49.9%, rgba(0,0,0,0.08) 50%)`; mask.style.zIndex=3;
+              day.appendChild(mask);
+              // set date number color for contrast
+              day.querySelector('.date-num').style.color = contrastColor(cat.color);
+            } else {
+              day.style.background = cat.color;
+              day.querySelector('.date-num').style.color = contrastColor(cat.color);
+            }
+          }
+        } else {
+          // no event
+          day.style.background = 'transparent';
+          day.querySelector('.date-num').style.color = 'var(--muted)';
+        }
+
+        daysEl.appendChild(day);
+      }
+      monthEl.appendChild(daysEl);
+      yearGrid.appendChild(monthEl);
+    }
+  }
+
+  // --- Day modal (remove, swap, half) ---
+  function openDayModal(date){
+    const ev = data.events[date];
+    modalTitle.textContent = 'Day options — ' + new Date(date).toLocaleDateString();
+    modalBody.innerHTML = '';
+    // show current assignment or empty state
+    const status = document.createElement('div'); status.style.marginBottom='8px';
+    if(ev && ev.catId){
+      const c = data.categories.find(x=>x.id===ev.catId);
+      status.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><div style="width:24px;height:24px;border-radius:6px;background:${c.color}"></div><div><strong>${escapeHtml(c.name)}</strong> ${ev.half? '(Half day)':''}</div></div>`;
+    } else {
+      status.innerHTML = `<div class="label">No time off on this day</div>`;
+    }
+    modalBody.appendChild(status);
+
+    // Swap select
+    const swapRow = document.createElement('div'); swapRow.className='row';
+    const swapSelect = document.createElement('select'); swapSelect.className='select';
+    const emptyOpt = document.createElement('option'); emptyOpt.value=''; emptyOpt.textContent='-- Swap to another category --';
+    swapSelect.appendChild(emptyOpt);
+    data.categories.forEach(c=>{ const opt=document.createElement('option'); opt.value=c.id; opt.textContent=`${c.name} (${(c.qty - c.used).toFixed(1)} left)`; swapSelect.appendChild(opt); });
+    swapRow.appendChild(swapSelect);
+    modalBody.appendChild(swapRow);
+
+    // Full/Half segmented toggle (replaces checkbox)
+    const segRow = document.createElement('div'); segRow.className='row';
+    const seg = document.createElement('div'); seg.className='seg-toggle';
+    const fullBtn = document.createElement('button'); fullBtn.type='button'; fullBtn.className='seg-btn'; fullBtn.textContent='Full day';
+    const halfBtn = document.createElement('button'); halfBtn.type='button'; halfBtn.className='seg-btn'; halfBtn.textContent='Half day';
+    // initialize selection based on current event (default full)
+    if(ev && ev.half){ halfBtn.classList.add('selected'); } else { fullBtn.classList.add('selected'); }
+    fullBtn.addEventListener('click', ()=>{ fullBtn.classList.add('selected'); halfBtn.classList.remove('selected'); });
+    halfBtn.addEventListener('click', ()=>{ halfBtn.classList.add('selected'); fullBtn.classList.remove('selected'); });
+    seg.appendChild(fullBtn); seg.appendChild(halfBtn);
+    segRow.appendChild(seg);
+    modalBody.appendChild(segRow);
+
+    // Remove button
+    const rmRow = document.createElement('div'); rmRow.className='row';
+    const removeBtn = document.createElement('button'); removeBtn.className='small-btn'; removeBtn.textContent='Remove day';
+    removeBtn.style.background = 'transparent'; removeBtn.onclick = ()=>{ if(confirm('Remove time off for this day?')){ delete data.events[date]; updateUsed(); renderCategories(); renderCalendar(); save(); hideModal(); } };
+    rmRow.appendChild(removeBtn);
+    modalBody.appendChild(rmRow);
+
+    // store modal context (store references to toggle buttons)
+    modalBody._editing = { type:'day', date, swapSelect, fullBtn, halfBtn };
+    showModal();
+  }
+
+  function applyModalChanges(){
+    const ctx = modalBody._editing;
+    if(!ctx) return hideModal();
+    if(ctx.type === 'category'){
+      // category editor
+      const { catId, inputs } = ctx;
+      const cat = data.categories.find(c=>c.id===catId);
+      if(!cat) return hideModal();
+      const newName = inputs.nameInput.value.trim(); const newQty = parseFloat(inputs.qtyInput.value) || 0;
+      if(newName) cat.name = newName;
+      if(newQty >= 0) cat.qty = newQty;
+      // ensure used <= qty? we just leave used as-is; UI will show negatives if over-used
+      updateUsed();
+      renderCategories(); renderCalendar(); save(); hideModal();
+    } else if(ctx.type === 'day'){
+      const date = ctx.date;
+      const selectedSwap = ctx.swapSelect.value;
+      // read segmented toggle state
+      const half = !!(ctx.halfBtn && ctx.halfBtn.classList.contains('selected'));
+      if(selectedSwap){
+        // assign selected category
+        const cat = data.categories.find(c=>c.id===selectedSwap);
+        if(cat){
+          const prev = data.events[date];
+          if(prev && prev.catId){
+            delete data.events[date];
+            data.events[date] = { catId: cat.id, half };
+          } else {
+            data.events[date] = { catId: cat.id, half };
+          }
+        }
+      } else {
+        // if no swap selected but toggle set and day assigned, toggle half/full
+        const ev = data.events[date];
+        if(ev && ev.catId){
+          ev.half = half;
+        }
+      }
+      updateUsed(); renderCategories(); renderCalendar(); save(); hideModal();
+    }
+  }
+
+  function showModal(){ modalBackdrop.style.display='flex'; }
+  function hideModal(){ modalBackdrop.style.display='none'; modalBody._editing = null; }
+
+  // --- helpers & persistence ---
+  function countUsed(catId){
+    let sum = 0;
+    for(const k in data.events){
+      const ev = data.events[k];
+      if(ev && ev.catId === catId){
+        sum += (ev.half ? 0.5 : 1);
+      }
+    }
+    return sum;
+  }
+  function updateUsed(){
+    data.categories.forEach(c => c.used = countUsed(c.id));
+  }
+
+  // new: format numbers — show decimals only when a half-day was used
+  function formatNumberForDisplay(value, used){
+    // if any half-day was used (used not integer) show one decimal, else show integer
+    const usedHasHalf = Math.abs(used - Math.round(used)) > 0.001;
+    return usedHasHalf ? value.toFixed(1) : String(Math.round(value));
+  }
+
+  function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function save(){ localStorage.setItem(stateKey, JSON.stringify(data)); }
+  function load(){
     const raw = localStorage.getItem(stateKey);
-    if (raw) {
-      try { data = JSON.parse(raw); } catch { }
+    if(raw){
+      try{ data = JSON.parse(raw); }catch(e){ console.warn('load failed', e); }
     }
-    if (!data.categories.length) {
-      data.categories.push({ id:'cat_pto', name:'PTO', qty:15, used:0, color:'#60a5fa' });
-      data.categories.push({ id:'cat_sick', name:'Sick', qty:10, used:0, color:'#34d399' });
+    if(!data.categories || !data.categories.length){
+      data.categories = [
+        { id:'cat_pto', name:'PTO', qty:15, used:0, color:PALETTE[0]},
+        { id:'cat_sick', name:'Sick', qty:10, used:0, color:PALETTE[4]},
+      ];
     }
+    if(!data.events) data.events = {};
   }
 
+  function exportJSON(){
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `timeoff-${data.year}.json`; a.click();
+  }
+  function importJSON(e){
+    const f = e.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try{
+        const obj = JSON.parse(ev.target.result);
+        if(obj && obj.categories){
+          data = obj;
+          updateUsed();
+          populateYearSelect();
+          renderCategories();
+          renderCalendar();
+          save();
+        } else alert('Invalid file');
+      }catch(err){ alert('Invalid JSON'); }
+    };
+    reader.readAsText(f);
+  }
+
+  // --- start ---
   init();
+
 })();
 </script>
 </body>
