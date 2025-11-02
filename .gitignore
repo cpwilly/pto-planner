@@ -1,1 +1,34 @@
-timeoff-planner-mui/node_modules
+# Node modules
+node_modules/
+timeoff-planner-mui/node_modules/
+
+# Build output
+timeoff-planner-mui/build/
+dist/
+
+# Environment files
+.env
+.env.*.local
+timeoff-planner-mui/.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+
+# Coverage and caches
+coverage/
+.cache/
+.parcel-cache/
+.turbo/
+
+# Misc
+.eslintcache
+.pnp.*
