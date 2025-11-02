@@ -16,6 +16,7 @@ import {
 import Navbar from "./components/Navbar";
 import Calendar from "./components/Calendar";
 import DayModalContent from "./components/DayModalContent";
+import MultiDayModalContent from "./components/MultiDayModalContent";
 
 const stateKey = "timeoff_planner_v3_react";
 
@@ -49,6 +50,12 @@ export default function App() {
       }
     return defaultData(today.getFullYear());
   });
+
+    const parseDate = (dstr) => {
+      if(!dstr) return null;
+      const parts = dstr.split('-').map(x=>parseInt(x,10));
+      return new Date(parts[0], (parts[1]||1)-1, parts[2]||1);
+    };
   const [yearSelect, setYearSelect] = useState(data.year);
   const [catName, setCatName] = useState("");
   const [catQty, setCatQty] = useState("");
@@ -178,26 +185,47 @@ export default function App() {
   }
 
   function openDayModal(date) {
-    setModalCtx({ type: "day", date, ev: data.events[date] || null });
+    // support calling with either a date string or a ctx object (for multi-day selection)
+    if (!date) return;
+    if (typeof date === 'string'){
+      setModalCtx({ type: "day", date, ev: data.events[date] || null });
+    } else {
+      // assume an object ctx for multi-day
+      setModalCtx(date);
+    }
     setModalOpen(true);
   }
 
   function applyModalChanges(ctx) {
     if (!ctx) return;
-    const date = ctx.date;
-    const half = !!ctx.half;
-    const selectedSwap = ctx.swapTo;
     const next = { ...data, events: { ...data.events } };
-    if (selectedSwap) {
-      next.events[date] = { catId: selectedSwap, half };
-    } else {
-      const ev = next.events[date];
-      if (ev && ev.catId) {
-        ev.half = half;
+    if (ctx.type === 'multi' && Array.isArray(ctx.dates)){
+      const half = !!ctx.half;
+      const selectedSwap = ctx.swapTo;
+      if (selectedSwap){
+        ctx.dates.forEach(d => {
+          // only apply to weekdays (should already be filtered, but double-check)
+          const w = parseDate(d).getDay(); if(w===0||w===6) return;
+          next.events[d] = { catId: selectedSwap, half };
+        });
+        updateUsed(next);
+        save(next);
       }
+    } else {
+      const date = ctx.date;
+      const half = !!ctx.half;
+      const selectedSwap = ctx.swapTo;
+      if (selectedSwap) {
+        next.events[date] = { catId: selectedSwap, half };
+      } else {
+        const ev = next.events[date];
+        if (ev && ev.catId) {
+          ev.half = half;
+        }
+      }
+      updateUsed(next);
+      save(next);
     }
-    updateUsed(next);
-    save(next);
     setModalOpen(false);
   }
 
@@ -300,7 +328,20 @@ export default function App() {
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)}>
         <DialogTitle>Day options</DialogTitle>
         <DialogContent>
-          {modalCtx && (
+          {modalCtx && (modalCtx.type === 'multi' ? (
+            <MultiDayModalContent
+              ctx={modalCtx}
+              data={data}
+              onChange={(newCtx) => setModalCtx(newCtx)}
+              onRemoveMulti={(dates)=>{
+                const next = { ...data, events: { ...data.events } };
+                dates.forEach(d=> delete next.events[d]);
+                updateUsed(next);
+                save(next);
+                setModalOpen(false);
+              }}
+            />
+          ) : (
             <DayModalContent
               ctx={modalCtx}
               data={data}
@@ -313,7 +354,7 @@ export default function App() {
                 setModalOpen(false);
               }}
             />
-          )}
+          ))}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setModalOpen(false)}>Close</Button>
