@@ -91,7 +91,15 @@ export default function App() {
   }
 
   function updateUsed(newData) {
-    newData.categories.forEach((c) => (c.used = countUsed(c.id)));
+    // Count usage against the provided newData.events so counts are accurate
+    // immediately after mutating or creating the new data object.
+    newData.categories.forEach((c) => {
+      let sum = 0;
+      Object.values(newData.events || {}).forEach((ev) => {
+        if (ev && ev.catId === c.id) sum += ev.half ? 0.5 : 1;
+      });
+      c.used = sum;
+    });
   }
 
   // addCategory can be called with (name, qty, color) or without args (uses local inputs)
@@ -218,9 +226,11 @@ export default function App() {
       if (selectedSwap) {
         next.events[date] = { catId: selectedSwap, half };
       } else {
-        const ev = next.events[date];
-        if (ev && ev.catId) {
-          ev.half = half;
+        // avoid mutating nested objects in-place; replace the event object so
+        // React sees the change clearly and downstream calculations use the
+        // updated value immediately.
+        if (next.events[date] && next.events[date].catId) {
+          next.events[date] = { ...next.events[date], half };
         }
       }
       updateUsed(next);
