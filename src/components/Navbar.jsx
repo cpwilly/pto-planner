@@ -39,7 +39,31 @@ export default function Navbar({
   }
 
   return (
-  <Box className={"navbar" + ((draggingDayDate || hoveringTrash) ? " trash-active" : "") }>
+  <Box
+    className={"navbar" + ((draggingDayDate || hoveringTrash) ? " trash-active" : "") }
+    onDragEnter={(e) => {
+      if (!draggingDayDate) return;
+      e.preventDefault();
+      setHoveringTrash(true);
+    }}
+    onDragOver={(e) => {
+      if (!draggingDayDate) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setHoveringTrash(true);
+    }}
+    onDragLeave={(e) => {
+      if (!draggingDayDate) return;
+      setHoveringTrash(false);
+    }}
+    onDrop={(e) => {
+      if (!draggingDayDate) return;
+      e.preventDefault();
+      setHoveringTrash(false);
+      onDayDropRemove && onDayDropRemove(draggingDayDate);
+      onDragEnd && onDragEnd();
+    }}
+  >
       <Typography variant="h6">Time Off Planner</Typography>
 
       <Typography className="label spacer">
