@@ -7,6 +7,8 @@ export default function Calendar({
   openDayModal,
   onDayDragEnter,
   onDayDragLeave,
+  onDayDragStart,
+  onDayDragEnd,
   hoverDate,
   draggingCatColor,
 }) {
@@ -158,7 +160,6 @@ export default function Calendar({
 
                 // mouse handlers for selection/extension
                 const handleMouseDown = (e) => {
-                  e.preventDefault();
                   setIsMouseDown(true);
                   if (ev && ev.catId) {
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -226,6 +227,14 @@ export default function Calendar({
                     }
                     onMouseDown={handleMouseDown}
                     onMouseEnter={handleMouseEnter}
+                    draggable={!!ev}
+                    onDragStart={(e) => {
+                      // start dragging an existing day entry
+                      onDayDragStart && onDayDragStart(date, e);
+                    }}
+                    onDragEnd={() => {
+                      onDayDragEnd && onDayDragEnd();
+                    }}
                     onDragOver={(e) => {
                       e.preventDefault();
                       onDayDragEnter && onDayDragEnter(date);

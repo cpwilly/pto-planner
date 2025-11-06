@@ -11,6 +11,9 @@
 html,body,#root{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Roboto,Arial;background:var(--bg);color:#0f172a}
 .app{display:flex;min-height:100vh;overflow:visible}
 .navbar{background:var(--nav);width:340px;padding:20px;box-shadow:0 6px 18px rgba(15,23,42,0.06);overflow:auto;border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;z-index:1000}
+/* Navbar trash/grey when dragging a day */
+.navbar.trash-active{background:#f3f4f6}
+.trash-overlay{position:fixed;left:20px;top:20px;z-index:1200;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(2,6,23,0.06);box-shadow:0 6px 18px rgba(15,23,42,0.06);color:var(--muted)}
 .calendar{flex:1;overflow:auto;padding:28px;margin-left:340px}
 .year-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
 .month{background:var(--card);border-radius:12px;padding:12px;border:1px solid var(--border);box-shadow:0 4px 14px rgba(15,23,42,0.03)}
@@ -47,6 +50,38 @@ html,body,#root{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,R
 
 /* Filled day style */
 .day.filled{border-color:rgba(15,23,42,0.04);color:var(--card)}
+
+/* cursor affordance for draggable days */
+.day.filled{cursor:grab}
+.day.filled:active{cursor:grabbing}
+
+/* Half-day diagonal divider (use on day elements to indicate a half day)
+   Implementation notes:
+   - ::before draws the filled triangle (higher opacity for visibility)
+   - ::after draws a thin diagonal separator to make the split obvious
+   - z-index ordering ensures the split is visible above most content but below the date number (which stays at z-index:5)
+   Usage:
+     - add `half` to any `.day` to show a diagonal split
+     - use `.day.half.left` to fill the left/top half, or `.day.half.right` to fill the right/bottom half
+*/
+.day.half{position:relative;overflow:hidden}
+.day.half::before,
+.day.half::after{content:"";position:absolute;inset:0;pointer-events:none}
+
+/* fill (triangle) */
+.day.half::before{z-index:1;background:linear-gradient(135deg, rgba(37,99,235,0.18) 49.9%, transparent 50%)}
+.day.half.left::before{background:linear-gradient(135deg, rgba(37,99,235,0.18) 49.9%, transparent 50%)}
+.day.half.right::before{background:linear-gradient(315deg, rgba(37,99,235,0.18) 49.9%, transparent 50%)}
+
+/* thin diagonal separator line */
+.day.half::after{z-index:3;background:linear-gradient(135deg, transparent 49%, rgba(15,23,42,0.12) 49%, rgba(15,23,42,0.12) 51%, transparent 51%)}
+.day.half.left::after{background:linear-gradient(135deg, transparent 49%, rgba(15,23,42,0.12) 49%, rgba(15,23,42,0.12) 51%, transparent 51%)}
+.day.half.right::after{background:linear-gradient(315deg, transparent 49%, rgba(15,23,42,0.12) 49%, rgba(15,23,42,0.12) 51%, transparent 51%)}
+
+/* when the day is also `.filled`, use a slightly darker fill so the half remains visible */
+.day.filled.half::before{background:linear-gradient(135deg, rgba(2,6,23,0.10) 49.9%, transparent 50%)}
+.day.filled.half.left::before{background:linear-gradient(135deg, rgba(2,6,23,0.10) 49.9%, transparent 50%)}
+.day.filled.half.right::before{background:linear-gradient(315deg, rgba(2,6,23,0.10) 49.9%, transparent 50%)}
 
 /* accessibility & focus */
 .day:focus{outline:3px solid rgba(37,99,235,0.14)}

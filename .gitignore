@@ -34,3 +34,5 @@ coverage/
 .pnp.*
 # Local Netlify folder
 .netlify
+
+*.code-workspace

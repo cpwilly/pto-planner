@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Box, Button, Select, MenuItem, Typography } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { hexToRgba } from '../utils';
 import CategoryEditor from "./CategoryEditor";
 
@@ -20,9 +21,13 @@ export default function Navbar({
   clearAll,
   PALETTE,
   updateCategory,
+  // day-drag props
+  onDayDropRemove,
+  draggingDayDate,
 }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorInitial, setEditorInitial] = useState(null);
+  const [hoveringTrash, setHoveringTrash] = useState(false);
 
   function openCreate() {
     setEditorInitial(null);
@@ -34,7 +39,30 @@ export default function Navbar({
   }
 
   return (
-    <Box className="navbar">
+    <Box
+      className={"navbar" + (hoveringTrash ? " trash-active" : "")}
+      onDragEnter={(e) => {
+        if (!draggingDayDate) return;
+        e.preventDefault();
+        setHoveringTrash(true);
+      }}
+      onDragOver={(e) => {
+        if (!draggingDayDate) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setHoveringTrash(true);
+      }}
+      onDragLeave={() => {
+        setHoveringTrash(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setHoveringTrash(false);
+        if (!draggingDayDate) return;
+        onDayDropRemove && onDayDropRemove(draggingDayDate);
+        onDragEnd && onDragEnd();
+      }}
+    >
       <Typography variant="h6">Time Off Planner</Typography>
 
       <Typography className="label spacer">
@@ -106,6 +134,14 @@ export default function Navbar({
           Clear All
         </Button>
       </Box>
+
+      {/* Trash overlay when dragging a day */}
+      {hoveringTrash && (
+        <Box className="trash-overlay">
+          <DeleteOutlineIcon />
+          <Typography style={{ marginLeft: 8 }}>Drop to remove day</Typography>
+        </Box>
+      )}
 
       {/* import/export moved to bottom */}
       <Box className="import-export">

@@ -65,7 +65,9 @@ export default function App() {
   const [modalCtx, setModalCtx] = useState(null);
   const fileInputRef = useRef(null);
   const dragCatRef = useRef(null);
+  const dragDayRef = useRef(null);
   const [draggingCatId, setDraggingCatId] = useState(null);
+  const [draggingDayDate, setDraggingDayDate] = useState(null);
   const [hoverDate, setHoverDate] = useState(null);
 
   useEffect(() => {
@@ -139,10 +141,31 @@ export default function App() {
 
   function onDrop(date, e) {
     e.preventDefault();
-    const catId =
-      e.dataTransfer.getData("text/plain") ||
-      (dragCatRef.current && dragCatRef.current.id);
-    if (!catId) return;
+    const payload = e.dataTransfer.getData("text/plain") ||
+      (dragCatRef.current && dragCatRef.current.id) ||
+      (dragDayRef.current && `day:${dragDayRef.current}`);
+    if (!payload) return;
+    // if payload is a moved day
+    if (payload && payload.startsWith("day:")) {
+      const from = payload.slice(4);
+      if (!from || from === date) {
+        // nothing to do
+        setDraggingDayDate(null);
+        dragDayRef.current = null;
+        return;
+      }
+      const next = { ...data, events: { ...data.events } };
+      next.events[date] = next.events[from];
+      delete next.events[from];
+      updateUsed(next);
+      save(next);
+      setDraggingDayDate(null);
+      dragDayRef.current = null;
+      setHoverDate(null);
+      return;
+    }
+    // otherwise treat as category drag (existing behavior)
+    const catId = payload;
     const cat = data.categories.find((c) => c.id === catId);
     if (!cat) return;
     const used = countUsed(cat.id);
@@ -184,6 +207,43 @@ export default function App() {
         e.dataTransfer.setDragImage(img, 32, 32);
       } catch (err) {}
     };
+  }
+
+  function onDayDragStart(date, e) {
+    dragDayRef.current = date;
+    setDraggingDayDate(date);
+    e.dataTransfer.setData("text/plain", `day:${date}`);
+    // set drag image to a small colored square representing the category
+    try {
+      const ev = data.events[date];
+      const cat = ev && data.categories.find((c) => c.id === ev.catId);
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = (cat && cat.color) || "#999";
+      ctx.fillRect(0, 0, 64, 64);
+      ctx.fillStyle = contrastColor((cat && cat.color) || "#999");
+      ctx.font = "bold 18px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText((cat && cat.name && cat.name[0]) || "D", 32, 32);
+      const img = new Image();
+      img.src = canvas.toDataURL();
+      img.onload = () => {
+        try {
+          e.dataTransfer.setDragImage(img, 32, 32);
+        } catch (err) {}
+      };
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  function onDayDragEnd() {
+    dragDayRef.current = null;
+    setDraggingDayDate(null);
+    setHoverDate(null);
   }
 
   function handleDragEnd() {
@@ -316,6 +376,17 @@ export default function App() {
         onDragStartCat={onDragStartCat}
         onDragEnd={handleDragEnd}
         draggingCatId={draggingCatId}
+        // day drag props
+        onDayDropRemove={(date) => {
+          const next = { ...data, events: { ...data.events } };
+          delete next.events[date];
+          updateUsed(next);
+          save(next);
+          // clear drag state
+          dragDayRef.current = null;
+          setDraggingDayDate(null);
+        }}
+        draggingDayDate={draggingDayDate}
         clearAll={clearAll}
         PALETTE={PALETTE}
         updateCategory={updateCategory}
@@ -327,6 +398,8 @@ export default function App() {
         openDayModal={openDayModal}
         onDayDragEnter={(date) => setHoverDate(date)}
         onDayDragLeave={(date) => setHoverDate(null)}
+        onDayDragStart={onDayDragStart}
+        onDayDragEnd={onDayDragEnd}
         hoverDate={hoverDate}
         draggingCatColor={
           draggingCatId
