@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import "./styles.css";
-import { PALETTE, contrastColor } from "./utils";
+import { PALETTE, contrastColor, hexToRgba } from "./utils";
 import {
   Box,
   Button,
@@ -66,6 +66,7 @@ export default function App() {
   const fileInputRef = useRef(null);
   const dragCatRef = useRef(null);
   const dragDayRef = useRef(null);
+  const dragImageRef = useRef(null);
   const [draggingCatId, setDraggingCatId] = useState(null);
   const [draggingDayDate, setDraggingDayDate] = useState(null);
   const [hoverDate, setHoverDate] = useState(null);
@@ -189,24 +190,57 @@ export default function App() {
     dragCatRef.current = cat;
     e.dataTransfer.setData("text/plain", cat.id);
     setDraggingCatId(cat.id);
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = cat.color;
-    ctx.fillRect(0, 0, 64, 64);
-    ctx.fillStyle = contrastColor(cat.color);
-    ctx.font = "bold 18px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(cat.name[0] || "•", 32, 32);
-    const img = new Image();
-    img.src = canvas.toDataURL("image/png");
-    img.onload = () => {
+    // build a rectangular translucent drag image with the category color
+    try {
+      const w = 100;
+      const h = 40;
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      // rounded rect background
+      const radius = 8;
+      ctx.fillStyle = hexToRgba(cat.color, 0.9);
+      ctx.beginPath();
+      ctx.moveTo(radius, 0);
+      ctx.lineTo(w - radius, 0);
+      ctx.quadraticCurveTo(w, 0, w, radius);
+      ctx.lineTo(w, h - radius);
+      ctx.quadraticCurveTo(w, h, w - radius, h);
+      ctx.lineTo(radius, h);
+      ctx.quadraticCurveTo(0, h, 0, h - radius);
+      ctx.lineTo(0, radius);
+      ctx.quadraticCurveTo(0, 0, radius, 0);
+      ctx.closePath();
+      ctx.fill();
+      // text label
+      ctx.fillStyle = contrastColor(cat.color);
+      ctx.font = "600 14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const label = cat.name || "Time Off";
+      ctx.fillText(label, w / 2, h / 2);
+
+      // Create a DOM element that uses the canvas data as a background image and attach
+      // it to the document so setDragImage is reliable across browsers.
+      const dataUrl = canvas.toDataURL();
+      const node = document.createElement("div");
+      node.style.width = w + "px";
+      node.style.height = h + "px";
+      node.style.backgroundImage = `url(${dataUrl})`;
+      node.style.backgroundSize = "cover";
+      node.style.position = "absolute";
+      node.style.left = "-9999px";
+      node.style.top = "-9999px";
+      node.style.pointerEvents = "none";
+      document.body.appendChild(node);
+      dragImageRef.current = node;
       try {
-        e.dataTransfer.setDragImage(img, 32, 32);
+        e.dataTransfer.setDragImage(node, w / 2, h / 2);
       } catch (err) {}
-    };
+    } catch (err) {
+      // fallback silently
+    }
   }
 
   function onDayDragStart(date, e) {
@@ -217,24 +251,49 @@ export default function App() {
     try {
       const ev = data.events[date];
       const cat = ev && data.categories.find((c) => c.id === ev.catId);
+      const color = (cat && cat.color) || "#999";
+      const w = 140;
+      const h = 40;
       const canvas = document.createElement("canvas");
-      canvas.width = 64;
-      canvas.height = 64;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext("2d");
-      ctx.fillStyle = (cat && cat.color) || "#999";
-      ctx.fillRect(0, 0, 64, 64);
-      ctx.fillStyle = contrastColor((cat && cat.color) || "#999");
-      ctx.font = "bold 18px sans-serif";
+      const radius = 8;
+      ctx.fillStyle = hexToRgba(color, 0.9);
+      ctx.beginPath();
+      ctx.moveTo(radius, 0);
+      ctx.lineTo(w - radius, 0);
+      ctx.quadraticCurveTo(w, 0, w, radius);
+      ctx.lineTo(w, h - radius);
+      ctx.quadraticCurveTo(w, h, w - radius, h);
+      ctx.lineTo(radius, h);
+      ctx.quadraticCurveTo(0, h, 0, h - radius);
+      ctx.lineTo(0, radius);
+      ctx.quadraticCurveTo(0, 0, radius, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = contrastColor(color);
+      ctx.font = "600 14px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText((cat && cat.name && cat.name[0]) || "D", 32, 32);
-      const img = new Image();
-      img.src = canvas.toDataURL();
-      img.onload = () => {
-        try {
-          e.dataTransfer.setDragImage(img, 32, 32);
-        } catch (err) {}
-      };
+      const label = (cat && cat.name) || "Time Off";
+      ctx.fillText(label, w / 2, h / 2);
+
+      const dataUrl = canvas.toDataURL();
+      const node = document.createElement("div");
+      node.style.width = w + "px";
+      node.style.height = h + "px";
+      node.style.backgroundImage = `url(${dataUrl})`;
+      node.style.backgroundSize = "cover";
+      node.style.position = "absolute";
+      node.style.left = "-9999px";
+      node.style.top = "-9999px";
+      node.style.pointerEvents = "none";
+      document.body.appendChild(node);
+      dragImageRef.current = node;
+      try {
+        e.dataTransfer.setDragImage(node, w / 2, h / 2);
+      } catch (err) {}
     } catch (err) {
       // ignore
     }
@@ -244,12 +303,23 @@ export default function App() {
     dragDayRef.current = null;
     setDraggingDayDate(null);
     setHoverDate(null);
+    // cleanup drag image element if created
+    try {
+      if (dragImageRef.current && dragImageRef.current.parentNode)
+        dragImageRef.current.parentNode.removeChild(dragImageRef.current);
+    } catch (e) {}
+    dragImageRef.current = null;
   }
 
   function handleDragEnd() {
     setDraggingCatId(null);
     setHoverDate(null);
     dragCatRef.current = null;
+    try {
+      if (dragImageRef.current && dragImageRef.current.parentNode)
+        dragImageRef.current.parentNode.removeChild(dragImageRef.current);
+    } catch (e) {}
+    dragImageRef.current = null;
   }
 
   function openDayModal(date) {
@@ -402,10 +472,17 @@ export default function App() {
         onDayDragEnd={onDayDragEnd}
         hoverDate={hoverDate}
         draggingCatColor={
+          // prefer dragging category color; if we're moving a day, use its category color
           draggingCatId
             ? data.categories.find((c) => c.id === draggingCatId)?.color
+            : draggingDayDate
+            ? (data.events[draggingDayDate]
+                ? data.categories.find((c) => c.id === data.events[draggingDayDate].catId)?.color
+                : null)
             : null
         }
+        draggingDayDate={draggingDayDate}
+        draggingCatId={draggingCatId}
       />
 
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)}>

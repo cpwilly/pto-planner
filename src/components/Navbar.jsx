@@ -39,30 +39,7 @@ export default function Navbar({
   }
 
   return (
-    <Box
-      className={"navbar" + (hoveringTrash ? " trash-active" : "")}
-      onDragEnter={(e) => {
-        if (!draggingDayDate) return;
-        e.preventDefault();
-        setHoveringTrash(true);
-      }}
-      onDragOver={(e) => {
-        if (!draggingDayDate) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        setHoveringTrash(true);
-      }}
-      onDragLeave={() => {
-        setHoveringTrash(false);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        setHoveringTrash(false);
-        if (!draggingDayDate) return;
-        onDayDropRemove && onDayDropRemove(draggingDayDate);
-        onDragEnd && onDragEnd();
-      }}
-    >
+  <Box className={"navbar" + ((draggingDayDate || hoveringTrash) ? " trash-active" : "") }>
       <Typography variant="h6">Time Off Planner</Typography>
 
       <Typography className="label spacer">
@@ -135,12 +112,33 @@ export default function Navbar({
         </Button>
       </Box>
 
-      {/* Trash overlay when dragging a day */}
-      {hoveringTrash && (
-        <Box className="trash-overlay">
-          <DeleteOutlineIcon />
-          <Typography style={{ marginLeft: 8 }}>Drop to remove day</Typography>
-        </Box>
+      {/* Full navbar trash overlay when a day is being dragged */}
+      {(!!draggingDayDate || hoveringTrash) && (
+        <div
+          className={"navbar-trash-cover" + (hoveringTrash ? " hover" : "")}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setHoveringTrash(true);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setHoveringTrash(true);
+          }}
+          onDragLeave={() => setHoveringTrash(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setHoveringTrash(false);
+            if (!draggingDayDate) return;
+            onDayDropRemove && onDayDropRemove(draggingDayDate);
+            onDragEnd && onDragEnd();
+          }}
+        >
+          <div className="navbar-trash-inner">
+            <DeleteOutlineIcon style={{ fontSize: 44 }} />
+            <Typography variant="subtitle1">Drop here to remove</Typography>
+          </div>
+        </div>
       )}
 
       {/* import/export moved to bottom */}

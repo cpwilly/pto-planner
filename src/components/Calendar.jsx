@@ -11,6 +11,10 @@ export default function Calendar({
   onDayDragEnd,
   hoverDate,
   draggingCatColor,
+  // indicate a day-drag is active (date string) so selection can be disabled
+  draggingDayDate,
+  // dragging category id also disables selection
+  draggingCatId,
 }) {
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -68,6 +72,16 @@ export default function Calendar({
     window.addEventListener("mouseup", onUp);
     return () => window.removeEventListener("mouseup", onUp);
   }, [isSelecting, selectedSet, openDayModal]);
+
+  // Clear selection state when no drag is active to avoid leftover multi-select
+  useEffect(() => {
+    if (draggingDayDate || draggingCatId) return;
+    setIsMouseDown(false);
+    setIsSelecting(false);
+    setSelectedSet(new Set());
+    selectModeRef.current = null;
+    startDateRef.current = null;
+  }, [draggingDayDate, draggingCatId]);
 
   function renderCalendar() {
     const year = data.year;
@@ -160,6 +174,9 @@ export default function Calendar({
 
                 // mouse handlers for selection/extension
                 const handleMouseDown = (e) => {
+                  // if a drag is active (either moving a day or dragging a category),
+                  // don't start multi-day selection — it clashes with drag behavior.
+                  if (draggingDayDate || draggingCatId) return;
                   setIsMouseDown(true);
                   if (ev && ev.catId) {
                     const rect = e.currentTarget.getBoundingClientRect();
