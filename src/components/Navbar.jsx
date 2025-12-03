@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { Box, Button, Select, MenuItem, Typography } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { hexToRgba } from '../utils';
+import EventAvailableIcon from "@mui/icons-material/EventAvailable";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import { hexToRgba } from "../utils";
 import CategoryEditor from "./CategoryEditor";
 
 export default function Navbar({
@@ -39,59 +40,87 @@ export default function Navbar({
   }
 
   return (
-  <Box
-    className={"navbar" + ((draggingDayDate || hoveringTrash) ? " trash-active" : "") }
-    onDragEnter={(e) => {
-      if (!draggingDayDate) return;
-      e.preventDefault();
-      setHoveringTrash(true);
-    }}
-    onDragOver={(e) => {
-      if (!draggingDayDate) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      setHoveringTrash(true);
-    }}
-    onDragLeave={(e) => {
-      if (!draggingDayDate) return;
-      setHoveringTrash(false);
-    }}
-    onDrop={(e) => {
-      if (!draggingDayDate) return;
-      e.preventDefault();
-      setHoveringTrash(false);
-      onDayDropRemove && onDayDropRemove(draggingDayDate);
-      onDragEnd && onDragEnd();
-    }}
-    >
-      <Typography variant="h6">Time Off Planner</Typography>
+    <Box
+      className={
+        "navbar" + (draggingDayDate || hoveringTrash ? " trash-active" : "")
+      }
+      onDragEnter={(e) => {
+        if (!draggingDayDate) return;
+        e.preventDefault();
+        setHoveringTrash(true);
+      }}
+      onDragOver={(e) => {
+        if (!draggingDayDate) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setHoveringTrash(true);
+      }}
+      onDragLeave={(e) => {
+        if (!draggingDayDate) return;
+        setHoveringTrash(false);
+      }}
+      onDrop={(e) => {
+        if (!draggingDayDate) return;
+        e.preventDefault();
+        setHoveringTrash(false);
+        onDayDropRemove && onDayDropRemove(draggingDayDate);
+        onDragEnd && onDragEnd();
+      }}
+        >
+      <div className="navbar-header flex-center" style={{ display: "flex", alignItems: "center", color: "#1976d2" }}>
+        <EventAvailableIcon style={{ marginRight: 5, fontSize: 34, color: "#1976d2" }} />
+        <Typography
+          variant="h4"
+          style={{ fontFamily: "Albert Sans, sans-serif", display: "inline-block", color: "#1976d2" }}
+        >
+          <strong>Time</strong>Off<strong>Tool</strong>
+        </Typography>
+      </div>
 
-      <Typography className="label spacer">
-      Year
+      <Typography
+        className="label spacer"
+      >
+        Year
       </Typography>
-      <Select value={year} onChange={(e) => onYearChange(+e.target.value)}>
-      {Array.from({ length: 6 }).map((_, i) => {
-        const y = 2025 + i;
-        return (
-        <MenuItem key={y} value={y}>
-          {y}
-        </MenuItem>
-        );
-      })}
+      <Select
+        value={year}
+        onChange={(e) => onYearChange(+e.target.value)}
+      >
+        {Array.from({ length: 6 }).map((_, i) => {
+          const y = 2025 + i;
+          return (
+            <MenuItem key={y} value={y}>
+              {y}
+            </MenuItem>
+          );
+        })}
       </Select>
 
-      <Typography className="label spacer">
-      Categories
-      </Typography>
+      <Typography className="label spacer">Categories</Typography>
       <Box id="categories">
-
-      {data.categories.map((cat) => {
+        {data.categories.map((cat) => {
           const used = cat.used || 0;
           const remaining = Math.max(0, cat.qty - used);
-          const containerStyle = draggingCatId===cat.id ? { background: hexToRgba(cat.color, 0.06) } : {};
+          const containerStyle =
+            draggingCatId === cat.id
+              ? { background: hexToRgba(cat.color, 0.06) }
+              : {};
           return (
-            <Box key={cat.id} className={"category" + (draggingCatId===cat.id? ' dragging':'')} draggable onDragStart={(e) => onDragStartCat(e, cat)} onDragEnd={()=> onDragEnd && onDragEnd()} style={containerStyle}>
-              <div className="cat-color" onClick={() => openEdit(cat)} style={{background: cat.color}} />
+            <Box
+              key={cat.id}
+              className={
+                "category" + (draggingCatId === cat.id ? " dragging" : "")
+              }
+              draggable
+              onDragStart={(e) => onDragStartCat(e, cat)}
+              onDragEnd={() => onDragEnd && onDragEnd()}
+              style={containerStyle}
+            >
+              <div
+                className="cat-color"
+                onClick={() => openEdit(cat)}
+                style={{ background: cat.color }}
+              />
               <Box className="meta flex-1" onClick={() => openEdit(cat)}>
                 <div className="name">{cat.name}</div>
                 <div className="qty">
@@ -114,14 +143,20 @@ export default function Navbar({
           );
         })}
         {/* Ghost "create" category inline */}
-        <Box key="__create" className="category create-ghost" onClick={() => openCreate()}>
+        <Box
+          key="__create"
+          className="category create-ghost"
+          onClick={() => openCreate()}
+        >
           <div className="create-icon">+</div>
           <Box className="meta">
             <div className="name muted-text">Add new category</div>
             <div className="qty muted-text">Click to create</div>
           </Box>
           <Box className="actions">
-            <Button size="small" className="small-btn">Create</Button>
+            <Button size="small" className="small-btn">
+              Create
+            </Button>
           </Box>
         </Box>
       </Box>
@@ -181,7 +216,13 @@ export default function Navbar({
         >
           Import
         </Button>
-        <input ref={fileInputRef} type="file" accept="application/json" className="file-input" onChange={(e) => importJSONFile(e.target.files)} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json"
+          className="file-input"
+          onChange={(e) => importJSONFile(e.target.files)}
+        />
       </Box>
 
       <CategoryEditor
