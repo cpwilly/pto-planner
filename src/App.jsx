@@ -17,21 +17,22 @@ import Navbar from "./components/Navbar";
 import Calendar from "./components/Calendar";
 import DayModalContent from "./components/DayModalContent";
 import MultiDayModalContent from "./components/MultiDayModalContent";
+import { holidays_observed_2025_2030 } from "./components/holidays.constants.jsx";
 
-const stateKey = "timeoff_planner_v3_react";
+const stateKey = "timeoff_planner_v4_react";
 
 function defaultDataForYear(year) {
   return {
     categories: [
+      { id: "cat_pto", name: "PTO", qty: 15, used: 0, color: PALETTE[0] },
+      { id: "cat_sick", name: "Sick", qty: 10, used: 0, color: PALETTE[5] },
       {
         id: "cat_holiday",
         name: "Holiday",
         qty: 10,
         used: 0,
-        color: PALETTE[9],
+        color: PALETTE[6],
       },
-      { id: "cat_pto", name: "PTO", qty: 15, used: 0, color: PALETTE[0] },
-      { id: "cat_sick", name: "Sick", qty: 10, used: 0, color: PALETTE[4] },
     ],
     events: {},
   };
@@ -47,13 +48,26 @@ export default function App() {
         // migrate old single-year shape -> keep top-level cats/events and add years map
         if (parsed && parsed.categories && parsed.year && !parsed.years) {
           const years = {};
-          years[parsed.year] = { categories: parsed.categories, events: parsed.events || {} };
-          return { year: parsed.year, years, categories: parsed.categories, events: parsed.events || {} };
+          years[parsed.year] = {
+            categories: parsed.categories,
+            events: parsed.events || {},
+          };
+          return {
+            year: parsed.year,
+            years,
+            categories: parsed.categories,
+            events: parsed.events || {},
+          };
         }
         // already new-format (multi-year)
         if (parsed && parsed.years && parsed.year) {
-          const yd = parsed.years[parsed.year] || defaultDataForYear(parsed.year);
-          return { ...parsed, categories: parsed.categories || yd.categories, events: parsed.events || yd.events };
+          const yd =
+            parsed.years[parsed.year] || defaultDataForYear(parsed.year);
+          return {
+            ...parsed,
+            categories: parsed.categories || yd.categories,
+            events: parsed.events || yd.events,
+          };
         }
       } catch (e) {
         console.warn(e);
@@ -61,15 +75,28 @@ export default function App() {
     }
     const y = today.getFullYear();
     const yd = defaultDataForYear(y);
-    return { year: y, years: { [y]: yd }, categories: yd.categories, events: yd.events };
+    return {
+      year: y,
+      years: { [y]: yd },
+      categories: yd.categories,
+      events: yd.events,
+    };
   });
 
-    const parseDate = (dstr) => {
-      if(!dstr) return null;
-      const parts = dstr.split('-').map(x=>parseInt(x,10));
-      return new Date(parts[0], (parts[1]||1)-1, parts[2]||1);
-    };
+  const parseDate = (dstr) => {
+    if (!dstr) return null;
+    const parts = dstr.split("-").map((x) => parseInt(x, 10));
+    return new Date(parts[0], (parts[1] || 1) - 1, parts[2] || 1);
+  };
   const [yearSelect, setYearSelect] = useState(data.year);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    // show welcome only if there is no saved state yet
+    try {
+      return !localStorage.getItem(stateKey);
+    } catch (e) {
+      return true;
+    }
+  });
   const [catName, setCatName] = useState("");
   const [catQty, setCatQty] = useState("");
   const [chosenColor, setChosenColor] = useState(PALETTE[0]);
@@ -88,6 +115,17 @@ export default function App() {
     localStorage.setItem(stateKey, JSON.stringify(data));
   }, [data]);
 
+  // On initial mount ensure the active year has holiday events populated
+  useEffect(() => {
+    const next = JSON.parse(JSON.stringify(data));
+    const y = next.year;
+    const changed = populateHolidaysForYear(next, y);
+    if (changed) {
+      updateUsed(next);
+      save(next);
+    }
+  }, []);
+
   useEffect(() => {
     // keep year select in sync
     setYearSelect(data.year);
@@ -97,7 +135,12 @@ export default function App() {
     // ensure years map exists and mirror the top-level categories/events
     const copy = JSON.parse(JSON.stringify(newData));
     copy.years = copy.years || {};
-    copy.years[copy.year] = { categories: copy.categories, events: copy.events || {} };
+    // merge with any existing year meta (preserve flags like holidaysPopulated)
+    copy.years[copy.year] = {
+      ...(copy.years[copy.year] || {}),
+      categories: copy.categories,
+      events: copy.events || {},
+    };
     setData(copy);
     localStorage.setItem(stateKey, JSON.stringify(copy));
   }
@@ -120,9 +163,13 @@ export default function App() {
       });
       c.used = sum;
     });
-    // mirror into years map as well if present
+    // mirror into years map as well if present, but merge so we don't drop flags
     if (newData.years && newData.year) {
-      newData.years[newData.year] = { categories: newData.categories, events: newData.events || {} };
+      newData.years[newData.year] = {
+        ...(newData.years[newData.year] || {}),
+        categories: newData.categories,
+        events: newData.events || {},
+      };
     }
   }
 
@@ -163,7 +210,8 @@ export default function App() {
 
   function onDrop(date, e) {
     e.preventDefault();
-    const payload = e.dataTransfer.getData("text/plain") ||
+    const payload =
+      e.dataTransfer.getData("text/plain") ||
       (dragCatRef.current && dragCatRef.current.id) ||
       (dragDayRef.current && `day:${dragDayRef.current}`);
     if (!payload) return;
@@ -346,7 +394,7 @@ export default function App() {
   function openDayModal(date) {
     // support calling with either a date string or a ctx object (for multi-day selection)
     if (!date) return;
-    if (typeof date === 'string'){
+    if (typeof date === "string") {
       setModalCtx({ type: "day", date, ev: data.events[date] || null });
     } else {
       // assume an object ctx for multi-day
@@ -358,13 +406,14 @@ export default function App() {
   function applyModalChanges(ctx) {
     if (!ctx) return;
     const next = { ...data, events: { ...data.events } };
-    if (ctx.type === 'multi' && Array.isArray(ctx.dates)){
+    if (ctx.type === "multi" && Array.isArray(ctx.dates)) {
       const half = !!ctx.half;
       const selectedSwap = ctx.swapTo;
-      if (selectedSwap){
-        ctx.dates.forEach(d => {
+      if (selectedSwap) {
+        ctx.dates.forEach((d) => {
           // only apply to weekdays (should already be filtered, but double-check)
-          const w = parseDate(d).getDay(); if(w===0||w===6) return;
+          const w = parseDate(d).getDay();
+          if (w === 0 || w === 6) return;
           next.events[d] = { catId: selectedSwap, half };
         });
         updateUsed(next);
@@ -392,8 +441,14 @@ export default function App() {
 
   function exportJSON() {
     // export only the active year's data
-    const yd = { year: data.year, categories: data.categories, events: data.events };
-    const blob = new Blob([JSON.stringify(yd, null, 2)], { type: "application/json" });
+    const yd = {
+      year: data.year,
+      categories: data.categories,
+      events: data.events,
+    };
+    const blob = new Blob([JSON.stringify(yd, null, 2)], {
+      type: "application/json",
+    });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `timeoff-${data.year}.json`;
@@ -414,7 +469,10 @@ export default function App() {
           next.categories = obj.categories;
           next.events = obj.events || {};
           next.years = next.years || {};
-          next.years[obj.year] = { categories: obj.categories, events: obj.events || {} };
+          next.years[obj.year] = {
+            categories: obj.categories,
+            events: obj.events || {},
+          };
           updateUsed(next);
           save(next);
         } else if (obj && obj.categories) {
@@ -423,7 +481,10 @@ export default function App() {
           next.categories = obj.categories;
           next.events = obj.events || {};
           next.years = next.years || {};
-          next.years[next.year] = { categories: next.categories, events: next.events };
+          next.years[next.year] = {
+            categories: next.categories,
+            events: next.events,
+          };
           updateUsed(next);
           save(next);
         } else alert("Invalid file");
@@ -437,6 +498,8 @@ export default function App() {
   function clearAll() {
     if (window.confirm("Clear all events?")) {
       const next = { ...data, events: {} };
+      next.years = next.years || {};
+      next.years[next.year] = { categories: next.categories, events: {} };
       updateUsed(next);
       save(next);
     }
@@ -453,6 +516,56 @@ export default function App() {
     save(next);
   }
 
+  function getHolidayDatesForYear(y) {
+    const rec = (holidays_observed_2025_2030 || []).find((h) => h.year === y);
+    if (!rec) return [];
+    return Object.keys(rec)
+      .filter((k) => k !== "year")
+      .map((k) => rec[k])
+      .filter(Boolean);
+  }
+
+  function ensureHolidayCategory(next) {
+    // find by id or name
+    let cat = (next.categories || []).find(
+      (c) =>
+        c.id === "cat_holiday" || (c.name && c.name.toLowerCase() === "holiday")
+    );
+    if (!cat) {
+      const id = "cat_holiday";
+      const color = PALETTE[6];
+      const obj = { id, name: "Holiday", qty: 10, used: 0, color };
+      next.categories = [...(next.categories || []), obj];
+      cat = obj;
+    }
+    return cat.id;
+  }
+
+  function populateHolidaysForYear(next, y) {
+    // ensure years map exists
+    next.years = next.years || {};
+    // If this year was already populated before, don't populate again
+    if (next.years[y] && next.years[y].holidaysPopulated) return false;
+    const dates = getHolidayDatesForYear(y);
+    // even if no dates available, mark as populated to avoid repeated attempts
+    if (!dates || dates.length === 0) {
+      next.years[y] = { categories: next.categories, events: next.events || {}, holidaysPopulated: true };
+      return false;
+    }
+    const catId = ensureHolidayCategory(next);
+    next.events = next.events || {};
+    let changed = false;
+    dates.forEach((d) => {
+      if (!next.events[d]) {
+        next.events[d] = { catId, half: false };
+        changed = true;
+      }
+    });
+    // mirror into years map and mark populated
+    next.years[y] = { categories: next.categories, events: next.events, holidaysPopulated: true };
+    return changed;
+  }
+
   // render calendar
   function onYearChange(y) {
     const next = JSON.parse(JSON.stringify(data));
@@ -461,6 +574,8 @@ export default function App() {
     const yd = next.years[y] || defaultDataForYear(y);
     next.categories = yd.categories;
     next.events = yd.events || {};
+    // populate holidays for the newly selected year (don't overwrite existing days)
+    populateHolidaysForYear(next, y);
     updateUsed(next);
     save(next);
     setYearSelect(y);
@@ -518,9 +633,11 @@ export default function App() {
           draggingCatId
             ? data.categories.find((c) => c.id === draggingCatId)?.color
             : draggingDayDate
-            ? (data.events[draggingDayDate]
-                ? data.categories.find((c) => c.id === data.events[draggingDayDate].catId)?.color
-                : null)
+            ? data.events[draggingDayDate]
+              ? data.categories.find(
+                  (c) => c.id === data.events[draggingDayDate].catId
+                )?.color
+              : null
             : null
         }
         draggingDayDate={draggingDayDate}
@@ -530,33 +647,34 @@ export default function App() {
       <Dialog open={modalOpen} onClose={() => setModalOpen(false)}>
         <DialogTitle>Day options</DialogTitle>
         <DialogContent>
-          {modalCtx && (modalCtx.type === 'multi' ? (
-            <MultiDayModalContent
-              ctx={modalCtx}
-              data={data}
-              onChange={(newCtx) => setModalCtx(newCtx)}
-              onRemoveMulti={(dates)=>{
-                const next = { ...data, events: { ...data.events } };
-                dates.forEach(d=> delete next.events[d]);
-                updateUsed(next);
-                save(next);
-                setModalOpen(false);
-              }}
-            />
-          ) : (
-            <DayModalContent
-              ctx={modalCtx}
-              data={data}
-              onChange={(newCtx) => setModalCtx(newCtx)}
-              onRemove={(date) => {
-                const next = { ...data, events: { ...data.events } };
-                delete next.events[date];
-                updateUsed(next);
-                save(next);
-                setModalOpen(false);
-              }}
-            />
-          ))}
+          {modalCtx &&
+            (modalCtx.type === "multi" ? (
+              <MultiDayModalContent
+                ctx={modalCtx}
+                data={data}
+                onChange={(newCtx) => setModalCtx(newCtx)}
+                onRemoveMulti={(dates) => {
+                  const next = { ...data, events: { ...data.events } };
+                  dates.forEach((d) => delete next.events[d]);
+                  updateUsed(next);
+                  save(next);
+                  setModalOpen(false);
+                }}
+              />
+            ) : (
+              <DayModalContent
+                ctx={modalCtx}
+                data={data}
+                onChange={(newCtx) => setModalCtx(newCtx)}
+                onRemove={(date) => {
+                  const next = { ...data, events: { ...data.events } };
+                  delete next.events[date];
+                  updateUsed(next);
+                  save(next);
+                  setModalOpen(false);
+                }}
+              />
+            ))}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setModalOpen(false)}>Close</Button>
@@ -566,6 +684,31 @@ export default function App() {
             }}
           >
             Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* One-time welcome modal shown only when there's no saved state */}
+      <Dialog open={showWelcome} onClose={() => setShowWelcome(false)}>
+        <DialogTitle>Welcome to <strong>Time</strong>Off<strong>Tool</strong>!</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            This app is designed to help you plan PTO and holidays. Drag a category
+            from the left panel onto calendar days to mark time off. Click a
+            filled day to edit or remove it. Create and edit categories using
+            the Categories editor.
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            Holidays are pre-populated, but can be changed. This app is a work in progress 😀
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setShowWelcome(false);
+            }}
+          >
+            Got it
           </Button>
         </DialogActions>
       </Dialog>
