@@ -63,29 +63,29 @@ export default function Navbar({
       onDayDropRemove && onDayDropRemove(draggingDayDate);
       onDragEnd && onDragEnd();
     }}
-  >
+    >
       <Typography variant="h6">Time Off Planner</Typography>
 
       <Typography className="label spacer">
-        Year
+      Year
       </Typography>
       <Select value={year} onChange={(e) => onYearChange(+e.target.value)}>
-        {Array.from({ length: 7 }).map((_, i) => {
-          const y = year - 1 + i;
-          return (
-            <MenuItem key={y} value={y}>
-              {y}
-            </MenuItem>
-          );
-        })}
+      {Array.from({ length: 6 }).map((_, i) => {
+        const y = 2025 + i;
+        return (
+        <MenuItem key={y} value={y}>
+          {y}
+        </MenuItem>
+        );
+      })}
       </Select>
 
       <Typography className="label spacer">
-        Categories
+      Categories
       </Typography>
       <Box id="categories">
 
-        {data.categories.map((cat) => {
+      {data.categories.map((cat) => {
           const used = cat.used || 0;
           const remaining = Math.max(0, cat.qty - used);
           const containerStyle = draggingCatId===cat.id ? { background: hexToRgba(cat.color, 0.06) } : {};

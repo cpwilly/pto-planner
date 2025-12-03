@@ -20,9 +20,8 @@ import MultiDayModalContent from "./components/MultiDayModalContent";
 
 const stateKey = "timeoff_planner_v3_react";
 
-function defaultData(year) {
+function defaultDataForYear(year) {
   return {
-    year,
     categories: [
       {
         id: "cat_holiday",
@@ -42,13 +41,27 @@ export default function App() {
   const today = new Date();
   const [data, setData] = useState(() => {
     const raw = localStorage.getItem(stateKey);
-    if (raw)
+    if (raw) {
       try {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        // migrate old single-year shape -> keep top-level cats/events and add years map
+        if (parsed && parsed.categories && parsed.year && !parsed.years) {
+          const years = {};
+          years[parsed.year] = { categories: parsed.categories, events: parsed.events || {} };
+          return { year: parsed.year, years, categories: parsed.categories, events: parsed.events || {} };
+        }
+        // already new-format (multi-year)
+        if (parsed && parsed.years && parsed.year) {
+          const yd = parsed.years[parsed.year] || defaultDataForYear(parsed.year);
+          return { ...parsed, categories: parsed.categories || yd.categories, events: parsed.events || yd.events };
+        }
       } catch (e) {
         console.warn(e);
       }
-    return defaultData(today.getFullYear());
+    }
+    const y = today.getFullYear();
+    const yd = defaultDataForYear(y);
+    return { year: y, years: { [y]: yd }, categories: yd.categories, events: yd.events };
   });
 
     const parseDate = (dstr) => {
@@ -81,13 +94,17 @@ export default function App() {
   }, [data.year]);
 
   function save(newData) {
-    setData(newData);
-    localStorage.setItem(stateKey, JSON.stringify(newData));
+    // ensure years map exists and mirror the top-level categories/events
+    const copy = JSON.parse(JSON.stringify(newData));
+    copy.years = copy.years || {};
+    copy.years[copy.year] = { categories: copy.categories, events: copy.events || {} };
+    setData(copy);
+    localStorage.setItem(stateKey, JSON.stringify(copy));
   }
 
   function countUsed(catId) {
     let sum = 0;
-    Object.values(data.events).forEach((ev) => {
+    Object.values(data.events || {}).forEach((ev) => {
       if (ev && ev.catId === catId) sum += ev.half ? 0.5 : 1;
     });
     return sum;
@@ -96,13 +113,17 @@ export default function App() {
   function updateUsed(newData) {
     // Count usage against the provided newData.events so counts are accurate
     // immediately after mutating or creating the new data object.
-    newData.categories.forEach((c) => {
+    (newData.categories || []).forEach((c) => {
       let sum = 0;
       Object.values(newData.events || {}).forEach((ev) => {
         if (ev && ev.catId === c.id) sum += ev.half ? 0.5 : 1;
       });
       c.used = sum;
     });
+    // mirror into years map as well if present
+    if (newData.years && newData.year) {
+      newData.years[newData.year] = { categories: newData.categories, events: newData.events || {} };
+    }
   }
 
   // addCategory can be called with (name, qty, color) or without args (uses local inputs)
@@ -370,9 +391,9 @@ export default function App() {
   }
 
   function exportJSON() {
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
+    // export only the active year's data
+    const yd = { year: data.year, categories: data.categories, events: data.events };
+    const blob = new Blob([JSON.stringify(yd, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `timeoff-${data.year}.json`;
@@ -386,9 +407,25 @@ export default function App() {
     reader.onload = (ev) => {
       try {
         const obj = JSON.parse(ev.target.result);
-        if (obj && obj.categories) {
-          updateUsed(obj);
-          setData(obj);
+        if (obj && obj.categories && obj.year) {
+          // import into the file's year slot and make it active
+          const next = JSON.parse(JSON.stringify(data));
+          next.year = obj.year;
+          next.categories = obj.categories;
+          next.events = obj.events || {};
+          next.years = next.years || {};
+          next.years[obj.year] = { categories: obj.categories, events: obj.events || {} };
+          updateUsed(next);
+          save(next);
+        } else if (obj && obj.categories) {
+          // legacy shape without year: import into current year
+          const next = JSON.parse(JSON.stringify(data));
+          next.categories = obj.categories;
+          next.events = obj.events || {};
+          next.years = next.years || {};
+          next.years[next.year] = { categories: next.categories, events: next.events };
+          updateUsed(next);
+          save(next);
         } else alert("Invalid file");
       } catch (err) {
         alert("Invalid JSON");
@@ -418,10 +455,15 @@ export default function App() {
 
   // render calendar
   function onYearChange(y) {
-    const next = { ...data, year: y };
-    setData(next);
-    setYearSelect(y);
+    const next = JSON.parse(JSON.stringify(data));
+    next.year = y;
+    next.years = next.years || {};
+    const yd = next.years[y] || defaultDataForYear(y);
+    next.categories = yd.categories;
+    next.events = yd.events || {};
+    updateUsed(next);
     save(next);
+    setYearSelect(y);
   }
 
   return (
